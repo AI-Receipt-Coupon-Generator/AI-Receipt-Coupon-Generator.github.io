@@ -1,925 +1,842 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Interactive Coupon Generator</title>
-	<script src="https://cdn.tailwindcss.com"></script>
-	<!-- Include html2canvas for image generation -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-	<!-- Include JsBarcode library for generating the barcode SVG -->
-	<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
-	<style>
-    	/* Apply Inter font for UI, Roboto Mono for the receipt text */
-    	body {
-        	font-family: 'Inter', sans-serif;
-        	background-color: #f7f7f9;
-    	}
-    	.receipt-font {
-        	font-family: 'Roboto Mono', monospace;
-    	}
-    	/* Custom dashed line for the tear-off effect */
-    	.perforation {
-        	border: none;
-        	border-top: 2px dashed #a0a0a0;
-        	margin: 1rem 0;
-        	opacity: 0.6;
-    	}
-    	/* Styling for the coupon output box */
-    	#coupon-preview {
-        	background-color: #ffffff;
-        	background-size: cover;
-        	background-position: center;
-        	color: #1f2937;
-        	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4, 0, 0.05);
-        	/* Added position relative for overlay and content layering */
-        	position: relative;
-        	overflow: hidden;
-        	min-height: 250px; /* Ensure space for image */
-    	}
-    	/* Style for the overlay to ensure text readability over a background image */
-    	.preview-overlay {
-        	position: absolute;
-        	top: 0;
-        	left: 0;
-        	right: 0;
-        	bottom: 0;
-        	background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
-        	z-index: 1; /* Below coupon content */
-        	border-radius: 0.5rem; /* Match parent rounded-lg */
-    	}
-    	/* Ensure coupon text content is above the overlay */
-    	.coupon-content {
-        	position: relative;
-        	z-index: 2;
-    	}
-    	/* Loading spinner style */
-    	.spinner {
-        	border: 4px solid rgba(0, 0, 0, 0.1);
-        	width: 20px;
-        	height: 20px;
-        	border-radius: 50%;
-        	border-left-color: #ffffff;
-        	animation: spin 1s ease infinite;
-    	}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Coupon Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include html2canvas for image generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Include JsBarcode library for generating the barcode SVG -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Inter font for UI, Roboto Mono for the receipt text */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f9;
+        }
+        .receipt-font {
+            font-family: 'Roboto Mono', monospace;
+        }
+        /* Custom dashed line for the tear-off effect */
+        .perforation {
+            border: none;
+            border-top: 2px dashed #a0a0a0;
+            margin: 1rem 0;
+            opacity: 0.6;
+        }
+        /* Styling for the coupon output box */
+        #coupon-preview {
+            background-color: #ffffff;
+            background-size: cover;
+            background-position: center;
+            color: #1f2937;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 4, 0, 0.05);
+            /* Added position relative for overlay and content layering */
+            position: relative; 
+            overflow: hidden;
+            min-height: 250px; /* Ensure space for image */
+        }
+        /* Style for the overlay to ensure text readability over a background image */
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+            z-index: 1; /* Below coupon content */
+            border-radius: 0.5rem; /* Match parent rounded-lg */
+        }
+        /* Ensure coupon text content is above the overlay */
+        .coupon-content {
+            position: relative;
+            z-index: 2;
+        }
+        /* Loading spinner style */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border-left-color: #ffffff;
+            animation: spin 1s ease infinite;
+        }
 
-
-    	@keyframes spin {
-        	0% { transform: rotate(0deg); }
-        	100% { transform: rotate(360deg); }
-    	}
-	</style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="p-4 sm:p-8">
 
-
-	<div class="max-w-4xl mx-auto">
-    	<h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">POS Receipt Coupon Generator</h1>
-       
-    	<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           
-        	<!-- Coupon Input Form -->
-        	<div class="p-6 bg-white rounded-xl shadow-lg h-fit">
-            	<h2 class="text-xl font-semibold mb-4 text-gray-700">Coupon Details</h2>
-               
-            	<form id="coupon-form" class="space-y-4">
-                   
-                	<!-- Discount Type and Value -->
-                	<div class="flex space-x-4">
-                    	<div class="w-1/3">
-                        	<label for="discountType" class="block text-sm font-medium text-gray-700">Type</label>
-                        	<select id="discountType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">POS Receipt Coupon Generator</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Coupon Input Form -->
+            <div class="p-6 bg-white rounded-xl shadow-lg h-fit">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">Coupon Details</h2>
+                
+                <form id="coupon-form" class="space-y-4">
+                    
+                    <!-- Discount Type and Value -->
+                    <div class="flex space-x-4">
+                        <div class="w-1/3">
+                            <label for="discountType" class="block text-sm font-medium text-gray-700">Type</label>
+                            <select id="discountType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                                 <option value="%_OFF">% OFF</option>
                                 <option value="$_OFF">$ OFF</option>
                                 <option value="FREE_ITEM">FREE ITEM</option>
-                        	</select>
-                    	</div>
-                    	<div class="w-2/3">
-                        	<label for="discountValue" class="block text-sm font-medium text-gray-700">Value (e.g., 15 or Coffee)</label>
-                        	<input type="text" id="discountValue" value="15" placeholder="e.g., 15 or Coffee" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                    	</div>
-                	</div>
+                            </select>
+                        </div>
+                        <div class="w-2/3">
+                            <label for="discountValue" class="block text-sm font-medium text-gray-700">Value (e.g., 15 or Coffee)</label>
+                            <input type="text" id="discountValue" value="15" placeholder="e.g., 15 or Coffee" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        </div>
+                    </div>
 
+                    <!-- Custom Headline Input -->
+                    <div>
+                        <label for="customHeadline" class="block text-sm font-medium text-gray-700">Custom Headline (Overrides default)</label>
+                        <input type="text" id="customHeadline" placeholder="e.g., 15% OFF YOUR NEXT PURCHASE" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
 
-                	<!-- Custom Headline Input -->
-                	<div>
-                    	<label for="customHeadline" class="block text-sm font-medium text-gray-700">Custom Headline (Overrides default)</label>
-                    	<input type="text" id="customHeadline" placeholder="e.g., 15% OFF YOUR NEXT PURCHASE" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                	</div>
+                    <!-- Minimum Purchase -->
+                    <div>
+                        <label for="minPurchase" class="block text-sm font-medium text-gray-700">Min. Purchase (Optional)</label>
+                        <input type="text" id="minPurchase" value="$50.00" placeholder="e.g., $50.00 or $0.00" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
 
+                    <!-- Expiration Date -->
+                    <div>
+                        <label for="expirationDate" class="block text-sm font-medium text-gray-700">Expiration Date</label>
+                        <input type="date" id="expirationDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
 
-                	<!-- Minimum Purchase -->
-                	<div>
-                    	<label for="minPurchase" class="block text-sm font-medium text-gray-700">Min. Purchase (Optional)</label>
-                    	<input type="text" id="minPurchase" value="$50.00" placeholder="e.g., $50.00 or $0.00" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                	</div>
-
-
-                	<!-- Expiration Date -->
-                	<div>
-                    	<label for="expirationDate" class="block text-sm font-medium text-gray-700">Expiration Date</label>
-                    	<input type="date" id="expirationDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                	</div>
-
-
-                	<!-- Coupon Code -->
-                	<div>
-                    	<label for="couponCode" class="block text-sm font-medium text-gray-700">Coupon Code</label>
-                    	<div class="flex space-x-2">
-                        	<input type="text" id="couponCode" value="SUMMER2025" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border receipt-font uppercase font-bold text-center">
-                        	<button type="button" id="generateCode" class="mt-1 px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition duration-150 shadow-md">
+                    <!-- Coupon Code -->
+                    <div>
+                        <label for="couponCode" class="block text-sm font-medium text-gray-700">Coupon Code</label>
+                        <div class="flex space-x-2">
+                            <input type="text" id="couponCode" value="SUMMER2025" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border receipt-font uppercase font-bold text-center">
+                            <button type="button" id="generateCode" class="mt-1 px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition duration-150 shadow-md">
                                 Generate
-                        	</button>
-                    	</div>
-                	</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Terms and Conditions -->
+                    <div>
+                        <label for="terms" class="block text-sm font-medium text-gray-700">Terms (Short)</label>
+                        <textarea id="terms" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">Valid for one-time use. Excludes clearance items.</textarea>
+                    </div>
+
+                </form>
+
+                <!-- AI Generation -->
+                <div class="mt-8 pt-4 border-t border-gray-200">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-700">AI Coupon Generator</h2>
+                    
+                    <!-- API Key Input -->
+                    <div class="mb-4">
+                        <label for="apiKeyInput" class="block text-sm font-medium text-gray-700">Gemini/Imagen API Key (Optional)</label>
+                        <input type="password" id="apiKeyInput" placeholder="Enter your key here..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border">
+                        <p class="text-xs text-gray-500 mt-1">If empty, the environment's default key will be used.</p>
+                    </div>
+
+                    <p class="text-sm text-gray-500 mb-3">Describe the coupon you want (e.g., "A coupon for a free small coffee with $10 purchase, expiring end of month.")</p>
+                    
+                    <textarea id="aiPrompt" rows="3" placeholder="Enter your coupon description here..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border">A coupon for a free small coffee with $10 purchase, expiring end of october 2025 with a happy store customer drinking coffee image.</textarea>
+
+                    <button id="generateAiCouponBtn" class="w-full mt-3 px-4 py-2 bg-violet-600 text-white font-medium rounded-md hover:bg-violet-700 transition duration-150 shadow-md flex items-center justify-center">
+                        <span id="ai-btn-text">Generate Coupon Draft with AI</span>
+                        <div id="ai-loading-spinner" class="spinner ml-3 hidden"></div>
+                    </button>
+                </div>
+
+                <!-- Camera/Upload Controls and Preview -->
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-700">Optional Background Photo</h2>
+                    
+                    <!-- Camera Controls -->
+                    <div class="flex flex-col space-y-3">
+                        <button id="startCameraBtn" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 transition duration-150 shadow-md">
+                            <span id="camera-btn-text">Start Camera</span>
+                        </button>
+                        <button id="takePhotoBtn" class="px-4 py-2 bg-orange-500 text-white font-medium rounded-md hover:bg-orange-600 transition duration-150 shadow-md hidden" disabled>
+                            Take Photo & Set Background
+                        </button>
+                    </div>
+
+                    <!-- Video stream and hidden capture canvas -->
+                    <div class="mt-4 relative bg-gray-900 rounded-lg overflow-hidden hidden" id="camera-container">
+                        <video id="cameraFeed" class="w-full h-auto object-cover" autoplay playsinline></video>
+                        <canvas id="photoCanvas" class="hidden"></canvas>
+                    </div>
+
+                    <!-- Image Upload Input -->
+                    <div class="pt-4 border-t border-gray-200 mt-4">
+                        <label for="imageUploadInput" class="block text-base font-medium text-gray-700 mb-2">OR Upload Photo from Device</label>
+                        <input type="file" id="imageUploadInput" accept="image/*" class="w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-pink-50 file:text-pink-700
+                            hover:file:bg-pink-100
+                        ">
+                    </div>
+
+                    <!-- Clear Photo Button (Applies to both camera and upload) -->
+                    <button id="clearPhotoBtn" class="w-full mt-4 px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600 transition duration-150 shadow-md">
+                        Clear Background Image
+                    </button>
+                </div>
+            </div>
+
+            <!-- Coupon Preview -->
+            <div class="p-6 bg-gray-100 rounded-xl">
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">POS Receipt Preview</h2>
+                
+                <div id="coupon-preview" class="w-full max-w-sm mx-auto p-4 border border-gray-200 rounded-lg shadow-2xl">
+                    <!-- Dynamic content will be injected here -->
+                </div>
+
+                <div class="mt-6 text-center">
+                    <!-- Consolidated status message area -->
+                    <p id="statusMessage" class="h-5 text-sm font-medium transition duration-300 text-gray-700 mb-2 opacity-0">Status Message</p>
+                    
+                    <div class="flex justify-center space-x-4">
+                        <button id="copyCouponText" class="px-6 py-3 bg-green-500 text-white font-bold text-sm rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
+                            Copy Coupon Text
+                        </button>
+                        <button id="downloadCouponPng" class="px-6 py-3 bg-blue-500 text-white font-bold text-sm rounded-lg hover:bg-blue-600 transition duration-150 shadow-md">
+                            Download as PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // --- Global Configuration ---
+        const TEXT_MODEL = 'gemini-2.5-flash-preview-05-20';
+        const IMAGE_MODEL = 'imagen-3.0-generate-002';
+        const MAX_RETRIES = 5;
+        const INITIAL_BACKOFF = 1000; // 1 second
+
+        // --- Utility Functions ---
+
+        /**
+         * Converts a date object to a formatted string (MM/DD/YYYY).
+         * @param {Date} date 
+         * @returns {string} Formatted date string
+         */
+        const formatDate = (date) => {
+            if (!date) return 'MM/DD/YYYY';
+            const [year, month, day] = date.split('-');
+            return `${month}/${day}/${year}`;
+        };
+
+        /**
+         * Generates a random alphanumeric coupon code.
+         * @returns {string} 10-character code
+         */
+        const generateRandomCode = () => {
+            return Math.random().toString(36).substring(2, 12).toUpperCase();
+        };
+
+        /**
+         * Exponential backoff utility for API retries.
+         */
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // --- Core Application Logic ---
+
+        const statusMessage = document.getElementById('statusMessage');
+
+        const elements = {
+            discountType: document.getElementById('discountType'),
+            discountValue: document.getElementById('discountValue'),
+            minPurchase: document.getElementById('minPurchase'),
+            expirationDate: document.getElementById('expirationDate'),
+            couponCode: document.getElementById('couponCode'),
+            terms: document.getElementById('terms'),
+            customHeadline: document.getElementById('customHeadline'),
+            couponPreview: document.getElementById('coupon-preview'),
+            
+            // Buttons
+            generateCodeBtn: document.getElementById('generateCode'),
+            copyCouponBtn: document.getElementById('copyCouponText'),
+            downloadPngBtn: document.getElementById('downloadCouponPng'),
+            startCameraBtn: document.getElementById('startCameraBtn'),
+            takePhotoBtn: document.getElementById('takePhotoBtn'),
+            clearPhotoBtn: document.getElementById('clearPhotoBtn'),
+            
+            // Camera/Upload elements
+            cameraBtnText: document.getElementById('camera-btn-text'),
+            cameraContainer: document.getElementById('camera-container'),
+            cameraFeed: document.getElementById('cameraFeed'),
+            photoCanvas: document.getElementById('photoCanvas'),
+            imageUploadInput: document.getElementById('imageUploadInput'),
+
+            // AI Generation elements
+            aiPrompt: document.getElementById('aiPrompt'),
+            generateAiCouponBtn: document.getElementById('generateAiCouponBtn'),
+            aiBtnText: document.getElementById('ai-btn-text'),
+            aiLoadingSpinner: document.getElementById('ai-loading-spinner'),
+            
+            // API Key Input
+            apiKeyInput: document.getElementById('apiKeyInput'), 
+        };
+        
+        let mediaStream = null;
+        let isCameraActive = false;
+
+        // Function to get the current API key (user input or empty string)
+        const getApiKey = () => {
+            return elements.apiKeyInput.value.trim();
+        };
+
+        // Function to construct the API URL for text generation
+        const getApiUrl = (model) => {
+            const key = getApiKey();
+            // Use the key in the URL. If key is empty, the environment is expected to inject it.
+            return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        };
+
+        // Function to construct the API URL for image generation
+        const getImageApiUrl = (model) => {
+            const key = getApiKey();
+            // Use the key in the URL. If key is empty, the environment is expected to inject it.
+            return `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${key}`;
+        };
 
 
-                	<!-- Terms and Conditions -->
-                	<div>
-                    	<label for="terms" class="block text-sm font-medium text-gray-700">Terms (Short)</label>
-                    	<textarea id="terms" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">Valid for one-time use. Excludes clearance items.</textarea>
-                	</div>
+        // Initialize expiration date to 30 days from now
+        const today = new Date();
+        const futureDate = new Date(today);
+        futureDate.setDate(today.getDate() + 30);
+        elements.expirationDate.value = futureDate.toISOString().split('T')[0];
+        
+        // Initialize custom headline with a default value
+        const initialValue = elements.discountValue.value.trim();
+        elements.customHeadline.value = `${initialValue || '15'}% OFF YOUR NEXT PURCHASE`;
+        
+        // Initial state check for AI button
+        const checkAiButtonState = () => {
+            elements.generateAiCouponBtn.disabled = elements.aiPrompt.value.trim().length < 5;
+        };
+        checkAiButtonState();
 
 
-            	</form>
+        /**
+         * Displays a status message with specific text and color.
+         */
+        const displayStatus = (message, colorClass) => {
+            statusMessage.textContent = message;
+            statusMessage.className = `h-5 text-sm font-medium transition duration-300 mb-2 ${colorClass}`;
+            statusMessage.classList.remove('opacity-0');
+            
+            // Hide message after a delay
+            setTimeout(() => {
+                statusMessage.classList.add('opacity-0');
+            }, 5000);
+        };
 
+        /**
+         * Stops the camera stream.
+         */
+        const stopCamera = () => {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            elements.cameraFeed.srcObject = null;
+            elements.cameraContainer.classList.add('hidden');
+            elements.takePhotoBtn.classList.add('hidden');
+            elements.takePhotoBtn.disabled = true;
+            elements.cameraBtnText.textContent = 'Start Camera';
+            elements.startCameraBtn.classList.remove('bg-red-600');
+            elements.startCameraBtn.classList.add('bg-purple-600');
+            isCameraActive = false;
+        };
 
-            	<!-- AI Generation -->
-            	<div class="mt-8 pt-4 border-t border-gray-200">
-                	<h2 class="text-xl font-semibold mb-4 text-gray-700">AI Coupon Generator</h2>
-                   
-                	<!-- API Key Input -->
-                	<div class="mb-4">
-                    	<label for="apiKeyInput" class="block text-sm font-medium text-gray-700">Gemini/Imagen API Key (Optional)</label>
-                    	<input type="password" id="apiKeyInput" placeholder="Enter your key here..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border">
-                    	<p class="text-xs text-gray-500 mt-1">If empty, the environment's default key will be used.</p>
-                	</div>
+        /**
+         * Starts the camera stream.
+         */
+        const startCamera = async () => {
+            if (isCameraActive) {
+                stopCamera();
+                return;
+            }
 
-
-                	<p class="text-sm text-gray-500 mb-3">Describe the coupon you want (e.g., "A coupon for a free small coffee with $10 purchase, expiring end of month.")</p>
-                   
-                	<textarea id="aiPrompt" rows="3" placeholder="Enter your coupon description here..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border">A coupon for a free small coffee with $10 purchase, expiring end of october 2025 with a happy store customer drinking coffee image.</textarea>
-
-
-                	<button id="generateAiCouponBtn" class="w-full mt-3 px-4 py-2 bg-violet-600 text-white font-medium rounded-md hover:bg-violet-700 transition duration-150 shadow-md flex items-center justify-center">
-                    	<span id="ai-btn-text">Generate Coupon Draft with AI</span>
-                    	<div id="ai-loading-spinner" class="spinner ml-3 hidden"></div>
-                	</button>
-            	</div>
-
-
-            	<!-- Camera/Upload Controls and Preview -->
-            	<div class="mt-6 pt-4 border-t border-gray-200">
-                	<h2 class="text-xl font-semibold mb-4 text-gray-700">Optional Background Photo</h2>
-                   
-                	<!-- Camera Controls -->
-                	<div class="flex flex-col space-y-3">
-                    	<button id="startCameraBtn" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 transition duration-150 shadow-md">
-                        	<span id="camera-btn-text">Start Camera</span>
-                    	</button>
-                    	<button id="takePhotoBtn" class="px-4 py-2 bg-orange-500 text-white font-medium rounded-md hover:bg-orange-600 transition duration-150 shadow-md hidden" disabled>
-                        	Take Photo & Set Background
-                    	</button>
-                	</div>
-
-
-                	<!-- Video stream and hidden capture canvas -->
-                	<div class="mt-4 relative bg-gray-900 rounded-lg overflow-hidden hidden" id="camera-container">
-                    	<video id="cameraFeed" class="w-full h-auto object-cover" autoplay playsinline></video>
-                    	<canvas id="photoCanvas" class="hidden"></canvas>
-                	</div>
-
-
-                	<!-- Image Upload Input -->
-                	<div class="pt-4 border-t border-gray-200 mt-4">
-                    	<label for="imageUploadInput" class="block text-base font-medium text-gray-700 mb-2">OR Upload Photo from Device</label>
-                    	<input type="file" id="imageUploadInput" accept="image/*" class="w-full text-sm text-gray-500
-                        	file:mr-4 file:py-2 file:px-4
-                        	file:rounded-md file:border-0
-                        	file:text-sm file:font-semibold
-                        	file:bg-pink-50 file:text-pink-700
-                        	hover:file:bg-pink-100
-                    	">
-                	</div>
-
-
-                	<!-- Clear Photo Button (Applies to both camera and upload) -->
-                	<button id="clearPhotoBtn" class="w-full mt-4 px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600 transition duration-150 shadow-md">
-                    	Clear Background Image
-                	</button>
-            	</div>
-        	</div>
-
-
-        	<!-- Coupon Preview -->
-        	<div class="p-6 bg-gray-100 rounded-xl">
-            	<h2 class="text-xl font-semibold mb-4 text-gray-700">POS Receipt Preview</h2>
-               
-            	<div id="coupon-preview" class="w-full max-w-sm mx-auto p-4 border border-gray-200 rounded-lg shadow-2xl">
-                	<!-- Dynamic content will be injected here -->
-            	</div>
-
-
-            	<div class="mt-6 text-center">
-                	<!-- Consolidated status message area -->
-                	<p id="statusMessage" class="h-5 text-sm font-medium transition duration-300 text-gray-700 mb-2 opacity-0">Status Message</p>
-                   
-                	<div class="flex justify-center space-x-4">
-                    	<button id="copyCouponText" class="px-6 py-3 bg-green-500 text-white font-bold text-sm rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
-                        	Copy Coupon Text
-                    	</button>
-                    	<button id="downloadCouponPng" class="px-6 py-3 bg-blue-500 text-white font-bold text-sm rounded-lg hover:bg-blue-600 transition duration-150 shadow-md">
-                        	Download as PNG
-                    	</button>
-                	</div>
-            	</div>
-        	</div>
-           
-    	</div>
-	</div>
-
-
-	<script>
-    	// --- Global Configuration ---
-    	const TEXT_MODEL = 'gemini-2.5-flash-preview-05-20';
-    	const IMAGE_MODEL = 'imagen-3.0-generate-002';
-    	const MAX_RETRIES = 5;
-    	const INITIAL_BACKOFF = 1000; // 1 second
-
-
-    	// --- Utility Functions ---
-
-
-    	/**
-     	* Converts a date object to a formatted string (MM/DD/YYYY).
-     	* @param {Date} date
-     	* @returns {string} Formatted date string
-     	*/
-    	const formatDate = (date) => {
-        	if (!date) return 'MM/DD/YYYY';
-        	const [year, month, day] = date.split('-');
-        	return `${month}/${day}/${year}`;
-    	};
-
-
-    	/**
-     	* Generates a random alphanumeric coupon code.
-     	* @returns {string} 10-character code
-     	*/
-    	const generateRandomCode = () => {
-        	return Math.random().toString(36).substring(2, 12).toUpperCase();
-    	};
-
-
-    	/**
-     	* Exponential backoff utility for API retries.
-     	*/
-    	const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-
-    	// --- Core Application Logic ---
-
-
-    	const statusMessage = document.getElementById('statusMessage');
-
-
-    	const elements = {
-        	discountType: document.getElementById('discountType'),
-        	discountValue: document.getElementById('discountValue'),
-        	minPurchase: document.getElementById('minPurchase'),
-        	expirationDate: document.getElementById('expirationDate'),
-        	couponCode: document.getElementById('couponCode'),
-        	terms: document.getElementById('terms'),
-        	customHeadline: document.getElementById('customHeadline'),
-        	couponPreview: document.getElementById('coupon-preview'),
-           
-        	// Buttons
-        	generateCodeBtn: document.getElementById('generateCode'),
-        	copyCouponBtn: document.getElementById('copyCouponText'),
-        	downloadPngBtn: document.getElementById('downloadCouponPng'),
-        	startCameraBtn: document.getElementById('startCameraBtn'),
-        	takePhotoBtn: document.getElementById('takePhotoBtn'),
-        	clearPhotoBtn: document.getElementById('clearPhotoBtn'),
-           
-        	// Camera/Upload elements
-        	cameraBtnText: document.getElementById('camera-btn-text'),
-        	cameraContainer: document.getElementById('camera-container'),
-        	cameraFeed: document.getElementById('cameraFeed'),
-        	photoCanvas: document.getElementById('photoCanvas'),
-        	imageUploadInput: document.getElementById('imageUploadInput'),
-
-
-        	// AI Generation elements
-        	aiPrompt: document.getElementById('aiPrompt'),
-        	generateAiCouponBtn: document.getElementById('generateAiCouponBtn'),
-        	aiBtnText: document.getElementById('ai-btn-text'),
-        	aiLoadingSpinner: document.getElementById('ai-loading-spinner'),
-           
-        	// API Key Input
-        	apiKeyInput: document.getElementById('apiKeyInput'),
-    	};
-       
-    	let mediaStream = null;
-    	let isCameraActive = false;
-
-
-    	// Function to get the current API key (user input or empty string)
-    	const getApiKey = () => {
-        	return elements.apiKeyInput.value.trim();
-    	};
-
-
-    	// Function to construct the API URL for text generation
-    	const getApiUrl = (model) => {
-        	const key = getApiKey();
-        	// Use the key in the URL. If key is empty, the environment is expected to inject it.
-        	return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-    	};
-
-
-    	// Function to construct the API URL for image generation
-    	const getImageApiUrl = (model) => {
-        	const key = getApiKey();
-        	// Use the key in the URL. If key is empty, the environment is expected to inject it.
-        	return `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${key}`;
-    	};
-
-
-
-
-    	// Initialize expiration date to 30 days from now
-    	const today = new Date();
-    	const futureDate = new Date(today);
-    	futureDate.setDate(today.getDate() + 30);
-    	elements.expirationDate.value = futureDate.toISOString().split('T')[0];
-       
-    	// Initialize custom headline with a default value
-    	const initialValue = elements.discountValue.value.trim();
-    	elements.customHeadline.value = `${initialValue || '15'}% OFF YOUR NEXT PURCHASE`;
-       
-    	// Initial state check for AI button
-    	const checkAiButtonState = () => {
-        	elements.generateAiCouponBtn.disabled = elements.aiPrompt.value.trim().length < 5;
-    	};
-    	checkAiButtonState();
-
-
-
-
-    	/**
-     	* Displays a status message with specific text and color.
-     	*/
-    	const displayStatus = (message, colorClass) => {
-        	statusMessage.textContent = message;
-        	statusMessage.className = `h-5 text-sm font-medium transition duration-300 mb-2 ${colorClass}`;
-        	statusMessage.classList.remove('opacity-0');
-           
-        	// Hide message after a delay
-        	setTimeout(() => {
-            	statusMessage.classList.add('opacity-0');
-        	}, 5000);
-    	};
-
-
-    	/**
-     	* Stops the camera stream.
-     	*/
-    	const stopCamera = () => {
-        	if (mediaStream) {
-            	mediaStream.getTracks().forEach(track => track.stop());
-        	}
-        	elements.cameraFeed.srcObject = null;
-        	elements.cameraContainer.classList.add('hidden');
-        	elements.takePhotoBtn.classList.add('hidden');
-        	elements.takePhotoBtn.disabled = true;
-        	elements.cameraBtnText.textContent = 'Start Camera';
-        	elements.startCameraBtn.classList.remove('bg-red-600');
-        	elements.startCameraBtn.classList.add('bg-purple-600');
-        	isCameraActive = false;
-    	};
-
-
-    	/**
-     	* Starts the camera stream.
-     	*/
-    	const startCamera = async () => {
-        	if (isCameraActive) {
-            	stopCamera();
-            	return;
-        	}
-
-
-        	try {
-            	displayStatus('Requesting camera access...', 'text-blue-600');
-            	mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            	elements.cameraFeed.srcObject = mediaStream;
+            try {
+                displayStatus('Requesting camera access...', 'text-blue-600');
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                elements.cameraFeed.srcObject = mediaStream;
                 elements.cameraFeed.play();
-               
-            	elements.cameraContainer.classList.remove('hidden');
-            	elements.takePhotoBtn.classList.remove('hidden');
-            	elements.takePhotoBtn.disabled = false;
-            	elements.cameraBtnText.textContent = 'Stop Camera';
-            	elements.startCameraBtn.classList.remove('bg-purple-600');
-            	elements.startCameraBtn.classList.add('bg-red-600');
-            	isCameraActive = true;
-            	elements.imageUploadInput.value = '';
-            	displayStatus('Camera started. Position the coupon background.', 'text-green-600');
-
-
-        	} catch (err) {
-            	console.error("Camera access failed:", err);
-            	displayStatus('Error: Camera access denied or unavailable.', 'text-red-600');
-            	stopCamera();
-        	}
-    	};
-
-
-    	/**
-     	* Captures a photo from the stream and sets it as the coupon background.
-     	*/
-    	const takePhoto = () => {
-        	if (!isCameraActive) return;
-        	const video = elements.cameraFeed;
-        	const canvas = elements.photoCanvas;
-        	canvas.width = video.videoWidth;
-        	canvas.height = video.videoHeight;
-
-
-        	const context = canvas.getContext('2d');
-        	context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        	const imageDataURL = canvas.toDataURL('image/png');
-           
-        	elements.couponPreview.style.backgroundImage = `url('${imageDataURL}')`;
-        	stopCamera();
-        	displayStatus('Photo captured and set as background!', 'text-green-600');
-        	updateCouponPreview();
-    	};
-
-
-    	/**
-     	* Handles local image file upload and sets it as the coupon background.
-     	*/
-    	const handleImageUpload = (event) => {
-        	const file = event.target.files[0];
-        	if (!file) return;
-
-
-        	if (isCameraActive) stopCamera();
-
-
-        	if (!file.type.startsWith('image/')) {
-            	displayStatus('Please select an image file.', 'text-red-600');
-            	event.target.value = '';
-            	return;
-        	}
-
-
-        	const reader = new FileReader();
-        	reader.onload = (e) => {
-            	const imageDataURL = e.target.result;
-            	elements.couponPreview.style.backgroundImage = `url('${imageDataURL}')`;
-            	displayStatus('Image uploaded and set as background!', 'text-green-600');
-            	updateCouponPreview();
-        	};
-           
-        	reader.readAsDataURL(file);
-    	};
-
-
-    	/**
-     	* Clears the custom background photo.
-     	*/
-    	const clearPhotoBackground = () => {
-        	elements.couponPreview.style.backgroundImage = 'none';
-        	elements.imageUploadInput.value = '';
-        	displayStatus('Background image cleared.', 'text-gray-600');
-        	updateCouponPreview();
-        	stopCamera();
-    	};
-
-
-    	// --- AI API CALLS ---
-
-
-    	/**
-     	* Calls the Imagen API to generate an image and returns a base64 URL.
-     	*/
-    	const generateImage = async (prompt) => {
-        	const payload = {
-            	instances: { prompt: prompt },
-            	parameters: { "sampleCount": 1 }
-        	};
-
-
-        	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            	try {
-                	const response = await fetch(getImageApiUrl(IMAGE_MODEL), {
-                    	method: 'POST',
-                    	headers: { 'Content-Type': 'application/json' },
-                    	body: JSON.stringify(payload)
-                	});
-
-
-                	if (response.ok) {
-                    	const result = await response.json();
-                    	const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
-                    	if (base64Data) {
-                        	return `data:image/png;base64,${base64Data}`;
-                    	}
-                    	throw new Error("Image API returned no image data.");
-                	}
-                   
-                	if (response.status === 429 && attempt < MAX_RETRIES - 1) {
-                    	const delay = INITIAL_BACKOFF * Math.pow(2, attempt) + Math.random() * 1000;
-                    	await sleep(delay);
-                    	continue; // Retry
-                	}
-                   
-                	throw new Error(`Image API call failed with status: ${response.status}`);
-            	} catch (error) {
-                	if (attempt === MAX_RETRIES - 1) {
-                    	throw new Error(`Image generation failed after ${MAX_RETRIES} attempts: ${error.message}`);
-                	}
-            	}
-        	}
-    	};
-
-
-    	/**
-     	* Calls the Gemini API to generate coupon details with exponential backoff.
-     	*/
-    	const callGeminiApi = async (payload) => {
-        	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            	try {
-                	const response = await fetch(getApiUrl(TEXT_MODEL), {
-                    	method: 'POST',
-                    	headers: { 'Content-Type': 'application/json' },
-                    	body: JSON.stringify(payload)
-                	});
-
-
-                	if (response.ok) {
-                    	return response.json();
-                	}
-                   
-                	if (response.status === 429 && attempt < MAX_RETRIES - 1) {
-                    	const delay = INITIAL_BACKOFF * Math.pow(2, attempt) + Math.random() * 1000;
-                    	await sleep(delay);
-                    	continue; // Retry
-                	}
-
-
-                	throw new Error(`API call failed with status: ${response.status}`);
-            	} catch (error) {
-                	if (attempt === MAX_RETRIES - 1) {
-                    	throw new Error(`Gemini API request failed after ${MAX_RETRIES} attempts: ${error.message}`);
-                	}
-            	}
-        	}
-    	};
-
-
-    	/**
-     	* Constructs the API payload with the JSON schema for structured output.
-     	*/
-    	const buildAiPayload = (prompt) => {
-        	const systemInstruction = "You are a coupon generator AI. Based on the user's request, generate a complete set of coupon details in the requested JSON format. Ensure all fields are valid, especially the expirationDate (YYYY-MM-DD, future date, set to the end of the specified month/year) and one of the allowed discountType values. Ignore any image requests in the prompt, as the image is handled separately.";
-           
-        	return {
-            	contents: [{ parts: [{ text: prompt }] }],
-            	systemInstruction: { parts: [{ text: systemInstruction }] },
-            	generationConfig: {
-                	responseMimeType: "application/json",
-                	responseSchema: {
-                    	type: "OBJECT",
-                    	properties: {
-                        	"discountType": { "type": "STRING", "enum": ["%_OFF", "$_OFF", "FREE_ITEM"] },
-                        	"discountValue": { "type": "STRING", "description": "The numeric value (e.g., '20') for %_OFF or $_OFF, or the item name (e.g., 'Small Coffee') for FREE_ITEM." },
-                        	"customHeadline": { "type": "STRING", "description": "A short, attention-grabbing headline for the coupon, e.g., 'WEEKEND SAVINGS EVENT'. Should be less than 40 characters." },
-                        	"minPurchase": { "type": "STRING", "description": "Minimum purchase requirement, including currency sign, e.g., '$50.00'. Use empty string if none." },
-                        	"expirationDate": { "type": "STRING", "description": "The coupon's expiration date in YYYY-MM-DD format, set to the requested future date." },
-                        	"couponCode": { "type": "STRING", "description": "A unique, uppercase alphanumeric code, e.g., 'FALL2025'." },
-                        	"terms": { "type": "STRING", "description": "Short terms and conditions (max 10 words)." }
-                    	},
-                    	"required": ["discountType", "discountValue", "customHeadline", "minPurchase", "expirationDate", "couponCode", "terms"]
-                	}
-            	}
-        	};
-    	};
-
-
-    	/**
-     	* Handles the entire AI coupon generation process (Image + Text).
-     	*/
-    	const generateCouponWithAI = async () => {
-        	const prompt = elements.aiPrompt.value.trim();
-        	if (prompt.length < 5) {
-            	displayStatus('Please enter a longer, more specific prompt.', 'text-red-500');
-            	return;
-        	}
-
-
-        	// 1. Clear existing content (but preserve image) and show combined loading state
-        	const hasExistingImage = elements.couponPreview.style.backgroundImage !== 'none' && elements.couponPreview.style.backgroundImage !== '';
-        	const loadingOverlay = hasExistingImage ? `<div class="preview-overlay"></div>` : '';
-        	elements.couponPreview.innerHTML = loadingOverlay + `
-            	<div class="p-4 text-center text-gray-500 receipt-font coupon-content">
-                	<p class="text-lg font-semibold mb-2">Generating Image and Coupon Details...</p>
-                	<p class="text-sm">This may take a few moments.</p>
-            	</div>
-        	`;
-        	elements.imageUploadInput.value = '';
-           
-        	// 2. Set loading state
-        	elements.generateAiCouponBtn.disabled = true;
-        	elements.aiBtnText.textContent = 'Generating...';
-        	elements.aiLoadingSpinner.classList.remove('hidden');
-        	displayStatus('AI is drafting your coupon details and image...', 'text-violet-600');
-
-
-        	try {
-            	// A. IMAGE GENERATION (First Step)
-            	displayStatus('Step 1/2: Generating background image (This can take 5-10s)...', 'text-purple-600');
-            	// Use a more descriptive prompt for the image, extracting the visual elements from the user's request
-            	const imagePromptDescription = prompt.includes('image') ? prompt.substring(prompt.indexOf('image') - 2) : "A happy store customer drinking coffee, inside a modern cafe, clean photo, mobile friendly aspect ratio.";
-               
-            	const imageUrl = await generateImage(imagePromptDescription);
-            	elements.couponPreview.style.backgroundImage = `url('${imageUrl}')`;
-               
-            	// Re-apply a visible loading overlay over the new image while we wait for text
-            	const currentOverlay = elements.couponPreview.querySelector('.preview-overlay');
-            	if (!currentOverlay) {
-                 	elements.couponPreview.innerHTML = `<div class="preview-overlay"></div>` + elements.couponPreview.innerHTML;
-            	}
-
-
-            	// B. TEXT GENERATION (Second Step)
-            	displayStatus('Step 2/2: Generating coupon details...', 'text-violet-600');
-            	const payload = buildAiPayload(prompt);
-            	const result = await callGeminiApi(payload);
-               
-            	const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-            	if (!jsonText) {
-                 	throw new Error('AI response was empty or malformed.');
-            	}
-               
-            	const couponData = JSON.parse(jsonText);
-
-
-            	// Populate form fields with AI data
-            	elements.discountType.value = couponData.discountType || elements.discountType.value;
-            	elements.discountValue.value = couponData.discountValue || elements.discountValue.value;
-            	elements.customHeadline.value = couponData.customHeadline || ''; // Set to empty if null/undefined to use default fallback
-            	elements.minPurchase.value = couponData.minPurchase || '';
-            	elements.couponCode.value = couponData.couponCode || generateRandomCode();
-            	elements.terms.value = couponData.terms || elements.terms.value;
-               
-            	// Set the expiration date, ensuring it matches the input type
-            	if (couponData.expirationDate) {
-                	const dateMatch = couponData.expirationDate.match(/\d{4}-\d{2}-\d{2}/);
-                	if (dateMatch) {
-                     	elements.expirationDate.value = dateMatch[0];
-                	}
-            	}
-
-
-            	updateCouponPreview(); // This call will correctly render the new content over the preserved image
-            	displayStatus('AI coupon and image generated successfully! Review and download.', 'text-green-600');
-
-
-        	} catch (error) {
-            	console.error('AI Generation Error:', error);
-            	// Clear the image if it failed halfway, or keep it if text failed
-            	if (error.message.includes('Image generation failed')) {
-                	elements.couponPreview.style.backgroundImage = 'none';
-                	elements.couponPreview.innerHTML = ''; // Clear failed loading state
-            	}
-            	displayStatus(`Error generating coupon: ${error.message || 'Could not parse AI response.'}`, 'text-red-600');
-            	updateCouponPreview(); // Ensure a final content render if the error occurred during text generation
-        	} finally {
-            	// Reset loading state
-            	elements.generateAiCouponBtn.disabled = false;
-            	elements.aiBtnText.textContent = 'Generate Coupon Draft with AI';
-            	elements.aiLoadingSpinner.classList.add('hidden');
-        	}
-    	};
-
-
-    	// --- Preview and Download Logic ---
-
-
-    	/**
-     	* Reads input and updates the visual coupon preview.
-     	*/
-    	const updateCouponPreview = () => {
-        	const type = elements.discountType.value;
-        	const value = elements.discountValue.value.trim();
-        	const min = elements.minPurchase.value.trim();
-        	const expiry = elements.expirationDate.value;
-        	const code = elements.couponCode.value.trim() || 'NOCODE';
-        	const terms = elements.terms.value.trim();
-        	const customHeadline = elements.customHeadline.value.trim();
-
-
-        	let discountLine = '';
-        	let headline = '';
-
-
-        	// Determine if a background image is set
-        	const hasBackgroundImage = elements.couponPreview.style.backgroundImage !== 'none' && elements.couponPreview.style.backgroundImage !== '';
-
-
-        	// 1. Determine the main discount line and fall back headline if custom is empty
-        	switch (type) {
-            	case '%_OFF':
-                	// Use custom headline if provided, otherwise auto-generate
-                	headline = customHeadline || `${value || 'XX'}% OFF YOUR NEXT PURCHASE`;
-                	discountLine = `${value || 'XX'}% DISCOUNT`;
-                	break;
-            	case '$_OFF':
-                	headline = customHeadline || `${value || '$X.XX'} OFF YOUR NEXT PURCHASE`;
-                	discountLine = `SAVE ${value || '$X.XX'}`;
-                	break;
-            	case 'FREE_ITEM':
-                	headline = customHeadline || `FREE ${value || 'ITEM NAME'}`;
-                	discountLine = `FREE ITEM: ${value || 'ITEM'}`;
-                	break;
-        	}
-
-
-        	// 2. Generate the formatted HTML for the receipt look
-        	// Inject the coupon content into a class that has a higher z-index (coupon-content)
-        	const couponContentHtml = `
-            	<div class="receipt-font text-xs tracking-tight text-center coupon-content p-4">
-                	<p class="text-xs mb-1">------------------------------------------</p>
-                	<p class="font-bold text-lg leading-tight mb-2 uppercase text-indigo-700">${headline}</p>
-                   
-                	<hr class="perforation">
-                   
-                	<p class="text-sm font-semibold mb-1">${discountLine}</p>
-                   
-                	${min ? `<p class="text-xs mb-1">WITH MINIMUM PURCHASE OF: ${min}</p>` : ''}
-                   
-                	<p class="text-xs font-bold mt-2">SCAN TO REDEEM:</p>
-                	<div class="flex justify-center my-2">
-                    	<!-- SVG container for the generated barcode -->
-                    	<svg id="barcode-svg" class="w-full h-16 max-w-[200px] bg-white p-1 rounded-sm border border-gray-300"></svg>
-                	</div>
-                   
-                	<p class="text-xs font-semibold mt-1">EXPIRES: ${formatDate(expiry)}</p>
-                   
-                	<hr class="perforation">
-
-
-                	${terms ? `<p class="text-xs italic px-2">${terms}</p>` : '<p class="text-xs italic px-2">Valid only at participating locations.</p>'}
-
-
-                	<p class="text-xs mt-3">------------------------------------------</p>
-                	<p class="text-xs mt-1">** PRESENT RECEIPT TO REDEEM **</p>
-            	</div>
-        	`;
-           
-        	// Apply overlay if an image is present
-        	const overlayHtml = hasBackgroundImage ? `<div class="preview-overlay"></div>` : '';
-
-
-        	elements.couponPreview.innerHTML = overlayHtml + couponContentHtml;
-
-
-        	// CRITICAL: Render the barcode after the SVG element is in the DOM
-        	try {
-            	JsBarcode("#barcode-svg", code, {
-                	format: "CODE128", // Standard barcode format for POS systems
-                	displayValue: true, // Show the text code underneath the bars
-                	text: code,
-                	textPosition: "bottom",
-                	fontSize: 12,
-                	height: 50,
-                	margin: 0,
-                	width: 1.5,
-                	lineColor: "#1f2937", // Dark color to ensure readability
-                	background: "transparent"
-            	});
-        	} catch (error) {
-            	// Handle case where code might be empty or invalid during input
-            	console.warn("Barcode generation error:", error);
-        	}
-    	};
-       
-    	/**
-     	* Converts the coupon preview to a PNG image and triggers a download.
-     	*/
-    	const downloadCouponPng = async () => {
-        	elements.downloadPngBtn.disabled = true; // Disable button during processing
-        	displayStatus('Generating image...', 'text-blue-600');
-           
-        	try {
-            	// html2canvas handles the SVG (barcode) correctly as it's part of the DOM
-            	const canvas = await html2canvas(elements.couponPreview, {
-                	scale: 3,
-                	backgroundColor: '#ffffff',
-                	useCORS: true
-            	});
-
-
-            	await new Promise((resolve, reject) => {
-                	canvas.toBlob(blob => {
-                    	if (!blob) {
-                        	reject(new Error("Canvas failed to create Blob."));
-                        	return;
-                    	}
-                       
-                    	const url = URL.createObjectURL(blob);
-                       
-                    	const link = document.createElement('a');
-                    	link.download = 'coupon-receipt-' + elements.couponCode.value.toLowerCase() + '.png';
-                    	link.href = url;
-                       
-                    	document.body.appendChild(link);
-                    	link.click();
-                    	document.body.removeChild(link);
-
-
-                    	URL.revokeObjectURL(url);
-                    	resolve();
-
-
-                	}, 'image/png');
-            	});
-               
-            	displayStatus('PNG Download initiated!', 'text-green-600');
-
-
-        	} catch (error) {
-            	console.error("Error generating or downloading image:", error);
-            	displayStatus('Download failed. Please **Right-Click** the coupon and select **"Save Image As..."** instead.', 'text-red-600');
-        	} finally {
-            	elements.downloadPngBtn.disabled = false;
-        	}
-    	};
-
-
-
-
-    	// --- Event Listeners ---
-
-
-    	// 1. Real-time update listener for form changes
-    	document.getElementById('coupon-form').addEventListener('input', updateCouponPreview);
-       
-    	// 2. Coupon Code generation button
-    	elements.generateCodeBtn.addEventListener('click', (e) => {
-        	e.preventDefault();
-        	elements.couponCode.value = generateRandomCode();
-        	updateCouponPreview();
-    	});
-
-
-    	// 3. Copy Coupon Text button
-    	elements.copyCouponBtn.addEventListener('click', () => {
-        	const previewDiv = elements.couponPreview;
-           
-        	// For copying, we only want the text data, not the image/barcode data
-        	const textToCopy = Array.from(previewDiv.querySelectorAll('.coupon-content p:not(.barcode-text)')).map(p => p.textContent.trim()).join('\n');
-           
-        	const tempTextArea = document.createElement('textarea');
-        	tempTextArea.value = textToCopy;
-           
-        	document.body.appendChild(tempTextArea);
-        	tempTextArea.select();
-        	document.execCommand('copy');
-        	document.body.removeChild(tempTextArea);
-
-
-        	displayStatus('Coupon text copied to clipboard!', 'text-green-600');
-    	});
-       
-    	// 4. Download as PNG button
-    	elements.downloadPngBtn.addEventListener('click', downloadCouponPng);
-
-
-    	// 5. Camera controls
-    	elements.startCameraBtn.addEventListener('click', startCamera);
-    	elements.takePhotoBtn.addEventListener('click', takePhoto);
-    	elements.clearPhotoBtn.addEventListener('click', clearPhotoBackground);
-
-
-    	// 6. Image Upload listener
-    	elements.imageUploadInput.addEventListener('change', handleImageUpload);
-
-
-    	// 7. AI Prompt change listener to enable/disable button
-    	elements.aiPrompt.addEventListener('input', checkAiButtonState);
-
-
-    	// 8. AI Coupon Generation button
-    	elements.generateAiCouponBtn.addEventListener('click', generateCouponWithAI);
-       
-    	// Initialize the view on load
-    	updateCouponPreview();
-
-
-	</script>
+                
+                elements.cameraContainer.classList.remove('hidden');
+                elements.takePhotoBtn.classList.remove('hidden');
+                elements.takePhotoBtn.disabled = false;
+                elements.cameraBtnText.textContent = 'Stop Camera';
+                elements.startCameraBtn.classList.remove('bg-purple-600');
+                elements.startCameraBtn.classList.add('bg-red-600');
+                isCameraActive = true;
+                elements.imageUploadInput.value = '';
+                displayStatus('Camera started. Position the coupon background.', 'text-green-600');
+
+            } catch (err) {
+                console.error("Camera access failed:", err);
+                displayStatus('Error: Camera access denied or unavailable.', 'text-red-600');
+                stopCamera();
+            }
+        };
+
+        /**
+         * Captures a photo from the stream and sets it as the coupon background.
+         */
+        const takePhoto = () => {
+            if (!isCameraActive) return;
+            const video = elements.cameraFeed;
+            const canvas = elements.photoCanvas;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataURL = canvas.toDataURL('image/png');
+            
+            elements.couponPreview.style.backgroundImage = `url('${imageDataURL}')`;
+            stopCamera();
+            displayStatus('Photo captured and set as background!', 'text-green-600');
+            updateCouponPreview();
+        };
+
+        /**
+         * Handles local image file upload and sets it as the coupon background.
+         */
+        const handleImageUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (isCameraActive) stopCamera();
+
+            if (!file.type.startsWith('image/')) {
+                displayStatus('Please select an image file.', 'text-red-600');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageDataURL = e.target.result;
+                elements.couponPreview.style.backgroundImage = `url('${imageDataURL}')`;
+                displayStatus('Image uploaded and set as background!', 'text-green-600');
+                updateCouponPreview();
+            };
+            
+            reader.readAsDataURL(file);
+        };
+
+        /**
+         * Clears the custom background photo.
+         */
+        const clearPhotoBackground = () => {
+            elements.couponPreview.style.backgroundImage = 'none';
+            elements.imageUploadInput.value = '';
+            displayStatus('Background image cleared.', 'text-gray-600');
+            updateCouponPreview(); 
+            stopCamera();
+        };
+
+        // --- AI API CALLS ---
+
+        /**
+         * Calls the Imagen API to generate an image and returns a base64 URL.
+         */
+        const generateImage = async (prompt) => {
+            const payload = { 
+                instances: { prompt: prompt }, 
+                parameters: { "sampleCount": 1 } 
+            };
+
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(getImageApiUrl(IMAGE_MODEL), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
+                        if (base64Data) {
+                            return `data:image/png;base64,${base64Data}`;
+                        }
+                        throw new Error("Image API returned no image data.");
+                    }
+                    
+                    if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+                        const delay = INITIAL_BACKOFF * Math.pow(2, attempt) + Math.random() * 1000;
+                        await sleep(delay);
+                        continue; // Retry
+                    }
+                    
+                    throw new Error(`Image API call failed with status: ${response.status}`);
+                } catch (error) {
+                    if (attempt === MAX_RETRIES - 1) {
+                        throw new Error(`Image generation failed after ${MAX_RETRIES} attempts: ${error.message}`);
+                    }
+                }
+            }
+        };
+
+        /**
+         * Calls the Gemini API to generate coupon details with exponential backoff.
+         */
+        const callGeminiApi = async (payload) => {
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(getApiUrl(TEXT_MODEL), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    
+                    if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+                        const delay = INITIAL_BACKOFF * Math.pow(2, attempt) + Math.random() * 1000;
+                        await sleep(delay);
+                        continue; // Retry
+                    }
+
+                    throw new Error(`API call failed with status: ${response.status}`);
+                } catch (error) {
+                    if (attempt === MAX_RETRIES - 1) {
+                        throw new Error(`Gemini API request failed after ${MAX_RETRIES} attempts: ${error.message}`);
+                    }
+                }
+            }
+        };
+
+        /**
+         * Constructs the API payload with the JSON schema for structured output.
+         */
+        const buildAiPayload = (prompt) => {
+            const systemInstruction = "You are a coupon generator AI. Based on the user's request, generate a complete set of coupon details in the requested JSON format. Ensure all fields are valid, especially the expirationDate (YYYY-MM-DD, future date, set to the end of the specified month/year) and one of the allowed discountType values. Ignore any image requests in the prompt, as the image is handled separately.";
+            
+            return {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "discountType": { "type": "STRING", "enum": ["%_OFF", "$_OFF", "FREE_ITEM"] },
+                            "discountValue": { "type": "STRING", "description": "The numeric value (e.g., '20') for %_OFF or $_OFF, or the item name (e.g., 'Small Coffee') for FREE_ITEM." },
+                            "customHeadline": { "type": "STRING", "description": "A short, attention-grabbing headline for the coupon, e.g., 'WEEKEND SAVINGS EVENT'. Should be less than 40 characters." },
+                            "minPurchase": { "type": "STRING", "description": "Minimum purchase requirement, including currency sign, e.g., '$50.00'. Use empty string if none." },
+                            "expirationDate": { "type": "STRING", "description": "The coupon's expiration date in YYYY-MM-DD format, set to the requested future date." },
+                            "couponCode": { "type": "STRING", "description": "A unique, uppercase alphanumeric code, e.g., 'FALL2025'." },
+                            "terms": { "type": "STRING", "description": "Short terms and conditions (max 10 words)." }
+                        },
+                        "required": ["discountType", "discountValue", "customHeadline", "minPurchase", "expirationDate", "couponCode", "terms"]
+                    }
+                }
+            };
+        };
+
+        /**
+         * Handles the entire AI coupon generation process (Image + Text).
+         */
+        const generateCouponWithAI = async () => {
+            const prompt = elements.aiPrompt.value.trim();
+            if (prompt.length < 5) {
+                displayStatus('Please enter a longer, more specific prompt.', 'text-red-500');
+                return;
+            }
+
+            // 1. Clear existing content (but preserve image) and show combined loading state
+            const hasExistingImage = elements.couponPreview.style.backgroundImage !== 'none' && elements.couponPreview.style.backgroundImage !== '';
+            const loadingOverlay = hasExistingImage ? `<div class="preview-overlay"></div>` : '';
+            elements.couponPreview.innerHTML = loadingOverlay + `
+                <div class="p-4 text-center text-gray-500 receipt-font coupon-content">
+                    <p class="text-lg font-semibold mb-2">Generating Image and Coupon Details...</p>
+                    <p class="text-sm">This may take a few moments.</p>
+                </div>
+            `;
+            elements.imageUploadInput.value = ''; 
+            
+            // 2. Set loading state
+            elements.generateAiCouponBtn.disabled = true;
+            elements.aiBtnText.textContent = 'Generating...';
+            elements.aiLoadingSpinner.classList.remove('hidden');
+            displayStatus('AI is drafting your coupon details and image...', 'text-violet-600');
+
+            try {
+                // A. IMAGE GENERATION (First Step)
+                displayStatus('Step 1/2: Generating background image (This can take 5-10s)...', 'text-purple-600');
+                // Use a more descriptive prompt for the image, extracting the visual elements from the user's request
+                const imagePromptDescription = prompt.includes('image') ? prompt.substring(prompt.indexOf('image') - 2) : "A happy store customer drinking coffee, inside a modern cafe, clean photo, mobile friendly aspect ratio.";
+                
+                const imageUrl = await generateImage(imagePromptDescription);
+                elements.couponPreview.style.backgroundImage = `url('${imageUrl}')`;
+                
+                // Re-apply a visible loading overlay over the new image while we wait for text
+                const currentOverlay = elements.couponPreview.querySelector('.preview-overlay');
+                if (!currentOverlay) {
+                     elements.couponPreview.innerHTML = `<div class="preview-overlay"></div>` + elements.couponPreview.innerHTML; 
+                }
+
+                // B. TEXT GENERATION (Second Step)
+                displayStatus('Step 2/2: Generating coupon details...', 'text-violet-600');
+                const payload = buildAiPayload(prompt);
+                const result = await callGeminiApi(payload);
+                
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!jsonText) {
+                     throw new Error('AI response was empty or malformed.');
+                }
+                
+                const couponData = JSON.parse(jsonText);
+
+                // Populate form fields with AI data
+                elements.discountType.value = couponData.discountType || elements.discountType.value;
+                elements.discountValue.value = couponData.discountValue || elements.discountValue.value;
+                elements.customHeadline.value = couponData.customHeadline || ''; // Set to empty if null/undefined to use default fallback
+                elements.minPurchase.value = couponData.minPurchase || '';
+                elements.couponCode.value = couponData.couponCode || generateRandomCode();
+                elements.terms.value = couponData.terms || elements.terms.value;
+                
+                // Set the expiration date, ensuring it matches the input type
+                if (couponData.expirationDate) {
+                    const dateMatch = couponData.expirationDate.match(/\d{4}-\d{2}-\d{2}/);
+                    if (dateMatch) {
+                         elements.expirationDate.value = dateMatch[0];
+                    }
+                }
+
+                updateCouponPreview(); // This call will correctly render the new content over the preserved image
+                displayStatus('AI coupon and image generated successfully! Review and download.', 'text-green-600');
+
+            } catch (error) {
+                console.error('AI Generation Error:', error);
+                // Clear the image if it failed halfway, or keep it if text failed
+                if (error.message.includes('Image generation failed')) {
+                    elements.couponPreview.style.backgroundImage = 'none';
+                    elements.couponPreview.innerHTML = ''; // Clear failed loading state
+                }
+                displayStatus(`Error generating coupon: ${error.message || 'Could not parse AI response.'}`, 'text-red-600');
+                updateCouponPreview(); // Ensure a final content render if the error occurred during text generation
+            } finally {
+                // Reset loading state
+                elements.generateAiCouponBtn.disabled = false;
+                elements.aiBtnText.textContent = 'Generate Coupon Draft with AI';
+                elements.aiLoadingSpinner.classList.add('hidden');
+            }
+        };
+
+        // --- Preview and Download Logic ---
+
+        /**
+         * Reads input and updates the visual coupon preview.
+         */
+        const updateCouponPreview = () => {
+            const type = elements.discountType.value;
+            const value = elements.discountValue.value.trim();
+            const min = elements.minPurchase.value.trim();
+            const expiry = elements.expirationDate.value;
+            const code = elements.couponCode.value.trim() || 'NOCODE';
+            const terms = elements.terms.value.trim();
+            const customHeadline = elements.customHeadline.value.trim(); 
+
+            let discountLine = '';
+            let headline = '';
+
+            // Determine if a background image is set
+            const hasBackgroundImage = elements.couponPreview.style.backgroundImage !== 'none' && elements.couponPreview.style.backgroundImage !== '';
+
+            // 1. Determine the main discount line and fall back headline if custom is empty
+            switch (type) {
+                case '%_OFF':
+                    // Use custom headline if provided, otherwise auto-generate
+                    headline = customHeadline || `${value || 'XX'}% OFF YOUR NEXT PURCHASE`;
+                    discountLine = `${value || 'XX'}% DISCOUNT`;
+                    break;
+                case '$_OFF':
+                    headline = customHeadline || `${value || '$X.XX'} OFF YOUR NEXT PURCHASE`;
+                    discountLine = `SAVE ${value || '$X.XX'}`;
+                    break;
+                case 'FREE_ITEM':
+                    headline = customHeadline || `FREE ${value || 'ITEM NAME'}`;
+                    discountLine = `FREE ITEM: ${value || 'ITEM'}`;
+                    break;
+            }
+
+            // 2. Generate the formatted HTML for the receipt look
+            // Inject the coupon content into a class that has a higher z-index (coupon-content)
+            const couponContentHtml = `
+                <div class="receipt-font text-xs tracking-tight text-center coupon-content p-4">
+                    <p class="text-xs mb-1">------------------------------------------</p>
+                    <p class="font-bold text-lg leading-tight mb-2 uppercase text-indigo-700">${headline}</p>
+                    
+                    <hr class="perforation">
+                    
+                    <p class="text-sm font-semibold mb-1">${discountLine}</p>
+                    
+                    ${min ? `<p class="text-xs mb-1">WITH MINIMUM PURCHASE OF: ${min}</p>` : ''}
+                    
+                    <p class="text-xs font-bold mt-2">SCAN TO REDEEM:</p>
+                    <div class="flex justify-center my-2">
+                        <!-- SVG container for the generated barcode -->
+                        <svg id="barcode-svg" class="w-full h-16 max-w-[200px] bg-white p-1 rounded-sm border border-gray-300"></svg>
+                    </div>
+                    
+                    <p class="text-xs font-semibold mt-1">EXPIRES: ${formatDate(expiry)}</p>
+                    
+                    <hr class="perforation">
+
+                    ${terms ? `<p class="text-xs italic px-2">${terms}</p>` : '<p class="text-xs italic px-2">Valid only at participating locations.</p>'}
+
+                    <p class="text-xs mt-3">------------------------------------------</p>
+                    <p class="text-xs mt-1">** PRESENT RECEIPT TO REDEEM **</p>
+                </div>
+            `;
+            
+            // Apply overlay if an image is present
+            const overlayHtml = hasBackgroundImage ? `<div class="preview-overlay"></div>` : '';
+
+            elements.couponPreview.innerHTML = overlayHtml + couponContentHtml;
+
+            // CRITICAL: Render the barcode after the SVG element is in the DOM
+            try {
+                JsBarcode("#barcode-svg", code, {
+                    format: "CODE128", // Standard barcode format for POS systems
+                    displayValue: true, // Show the text code underneath the bars
+                    text: code,
+                    textPosition: "bottom",
+                    fontSize: 12,
+                    height: 50,
+                    margin: 0,
+                    width: 1.5,
+                    lineColor: "#1f2937", // Dark color to ensure readability
+                    background: "transparent"
+                });
+            } catch (error) {
+                // Handle case where code might be empty or invalid during input
+                console.warn("Barcode generation error:", error);
+            }
+        };
+        
+        /**
+         * Converts the coupon preview to a PNG image and triggers a download.
+         */
+        const downloadCouponPng = async () => {
+            elements.downloadPngBtn.disabled = true; // Disable button during processing
+            displayStatus('Generating image...', 'text-blue-600');
+            
+            try {
+                // html2canvas handles the SVG (barcode) correctly as it's part of the DOM
+                const canvas = await html2canvas(elements.couponPreview, { 
+                    scale: 3, 
+                    backgroundColor: '#ffffff', 
+                    useCORS: true 
+                });
+
+                await new Promise((resolve, reject) => {
+                    canvas.toBlob(blob => {
+                        if (!blob) {
+                            reject(new Error("Canvas failed to create Blob."));
+                            return;
+                        }
+                        
+                        const url = URL.createObjectURL(blob);
+                        
+                        const link = document.createElement('a');
+                        link.download = 'coupon-receipt-' + elements.couponCode.value.toLowerCase() + '.png';
+                        link.href = url;
+                        
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        URL.revokeObjectURL(url);
+                        resolve();
+
+                    }, 'image/png');
+                });
+                
+                displayStatus('PNG Download initiated!', 'text-green-600');
+
+            } catch (error) {
+                console.error("Error generating or downloading image:", error);
+                displayStatus('Download failed. Please **Right-Click** the coupon and select **"Save Image As..."** instead.', 'text-red-600');
+            } finally {
+                elements.downloadPngBtn.disabled = false; 
+            }
+        };
+
+
+        // --- Event Listeners ---
+
+        // 1. Real-time update listener for form changes
+        document.getElementById('coupon-form').addEventListener('input', updateCouponPreview);
+        
+        // 2. Coupon Code generation button
+        elements.generateCodeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            elements.couponCode.value = generateRandomCode();
+            updateCouponPreview();
+        });
+
+        // 3. Copy Coupon Text button
+        elements.copyCouponBtn.addEventListener('click', () => {
+            const previewDiv = elements.couponPreview;
+            
+            // For copying, we only want the text data, not the image/barcode data
+            const textToCopy = Array.from(previewDiv.querySelectorAll('.coupon-content p:not(.barcode-text)')).map(p => p.textContent.trim()).join('\n');
+            
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textToCopy;
+            
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            displayStatus('Coupon text copied to clipboard!', 'text-green-600');
+        });
+        
+        // 4. Download as PNG button
+        elements.downloadPngBtn.addEventListener('click', downloadCouponPng);
+
+        // 5. Camera controls
+        elements.startCameraBtn.addEventListener('click', startCamera);
+        elements.takePhotoBtn.addEventListener('click', takePhoto);
+        elements.clearPhotoBtn.addEventListener('click', clearPhotoBackground);
+
+        // 6. Image Upload listener
+        elements.imageUploadInput.addEventListener('change', handleImageUpload);
+
+        // 7. AI Prompt change listener to enable/disable button
+        elements.aiPrompt.addEventListener('input', checkAiButtonState);
+
+        // 8. AI Coupon Generation button
+        elements.generateAiCouponBtn.addEventListener('click', generateCouponWithAI);
+        
+        // Initialize the view on load
+        updateCouponPreview();
+
+    </script>
 </body>
 </html>
