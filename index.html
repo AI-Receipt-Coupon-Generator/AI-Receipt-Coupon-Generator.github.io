@@ -140,8 +140,8 @@
                 </div>
 
                 <form id="coupon-form">
-                    <!-- Wrapper for Collapsing: Max-h is large for content -->
-                    <div id="coupon-input-container" class="space-y-4 transition-all duration-500 ease-in-out overflow-hidden max-h-[800px] visible">
+                    <!-- Wrapper for Collapsing: Open by default -->
+                    <div id="coupon-input-container" class="space-y-4 transition-all duration-500 ease-in-out overflow-hidden visible" style="max-height: 800px;">
                         
                         <!-- Discount Type and Value -->
                         <div class="flex space-x-4">
@@ -218,8 +218,8 @@
                         <svg id="ai-toggle-icon" class="w-6 h-6 text-gray-500 transform transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
 
-                    <!-- Wrapper for AI Content (Default collapsed: max-h-0 invisible) -->
-                    <div id="ai-input-container" class="space-y-4 transition-all duration-500 ease-in-out overflow-hidden max-h-0 invisible">
+                    <!-- Wrapper for AI Content (Default collapsed) -->
+                    <div id="ai-input-container" class="space-y-4 transition-all duration-500 ease-in-out overflow-hidden invisible" style="max-height: 0;">
                         
                         <!-- API Key Input -->
                         <div class="mb-4">
@@ -247,40 +247,49 @@
 
                 <!-- Camera/Upload Controls and Preview -->
                 <div class="mt-6 pt-4 border-t border-gray-200">
-                    <h2 class="text-xl font-semibold mb-4 text-gray-700">Optional Background Photo</h2>
-                    
-                    <!-- Camera Controls -->
-                    <div class="flex flex-col space-y-3">
-                        <button id="startCameraBtn" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 transition duration-150 shadow-md">
-                            <span id="camera-btn-text">Start Camera</span>
+                    <!-- Collapsible Header for Photo (Default Collapsed) -->
+                    <div id="photo-generator-header" class="flex justify-between items-center cursor-pointer mb-4">
+                        <h2 class="text-xl font-semibold text-gray-700">Optional Background Photo</h2>
+                        <!-- Icon: Rotate-180 for closed state -->
+                        <svg id="photo-toggle-icon" class="w-6 h-6 text-gray-500 transform transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+
+                    <!-- Wrapper for Photo Content (Default collapsed) -->
+                    <div id="photo-input-container" class="space-y-4 transition-all duration-500 ease-in-out overflow-hidden invisible" style="max-height: 0;">
+                        
+                        <!-- Camera Controls -->
+                        <div class="flex flex-col space-y-3">
+                            <button id="startCameraBtn" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 transition duration-150 shadow-md">
+                                <span id="camera-btn-text">Start Camera</span>
+                            </button>
+                            <button id="takePhotoBtn" class="px-4 py-2 bg-orange-500 text-white font-medium rounded-md hover:bg-orange-600 transition duration-150 shadow-md hidden" disabled>
+                                Take Photo & Set Background
+                            </button>
+                        </div>
+
+                        <!-- Video stream and hidden capture canvas -->
+                        <div class="mt-4 relative bg-gray-900 rounded-lg overflow-hidden hidden" id="camera-container">
+                            <video id="cameraFeed" class="w-full h-auto object-cover" autoplay playsinline></video>
+                            <canvas id="photoCanvas" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Image Upload Input -->
+                        <div class="pt-4 border-t border-gray-200 mt-4">
+                            <label for="imageUploadInput" class="block text-base font-medium text-gray-700 mb-2">OR Upload Photo from Device</label>
+                            <input type="file" id="imageUploadInput" accept="image/*" class="w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-md file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-pink-50 file:text-pink-700
+                                hover:file:bg-pink-100
+                            ">
+                        </div>
+
+                        <!-- Clear Photo Button (Applies to both camera and upload) -->
+                        <button id="clearPhotoBtn" class="w-full mt-4 px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600 transition duration-150 shadow-md">
+                            Clear Background Image
                         </button>
-                        <button id="takePhotoBtn" class="px-4 py-2 bg-orange-500 text-white font-medium rounded-md hover:bg-orange-600 transition duration-150 shadow-md hidden" disabled>
-                            Take Photo & Set Background
-                        </button>
                     </div>
-
-                    <!-- Video stream and hidden capture canvas -->
-                    <div class="mt-4 relative bg-gray-900 rounded-lg overflow-hidden hidden" id="camera-container">
-                        <video id="cameraFeed" class="w-full h-auto object-cover" autoplay playsinline></video>
-                        <canvas id="photoCanvas" class="hidden"></canvas>
-                    </div>
-
-                    <!-- Image Upload Input -->
-                    <div class="pt-4 border-t border-gray-200 mt-4">
-                        <label for="imageUploadInput" class="block text-base font-medium text-gray-700 mb-2">OR Upload Photo from Device</label>
-                        <input type="file" id="imageUploadInput" accept="image/*" class="w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-pink-50 file:text-pink-700
-                            hover:file:bg-pink-100
-                        ">
-                    </div>
-
-                    <!-- Clear Photo Button (Applies to both camera and upload) -->
-                    <button id="clearPhotoBtn" class="w-full mt-4 px-4 py-2 bg-gray-500 text-white font-medium rounded-md hover:bg-gray-600 transition duration-150 shadow-md">
-                        Clear Background Image
-                    </button>
                 </div>
             </div>
 
@@ -369,10 +378,15 @@
             couponInputContainer: document.getElementById('coupon-input-container'),
             toggleIcon: document.getElementById('toggle-icon'),
             
-            // AI Generator Collapse Elements (NEW)
+            // AI Generator Collapse Elements
             aiGeneratorHeader: document.getElementById('ai-generator-header'),
             aiInputContainer: document.getElementById('ai-input-container'),
             aiToggleIcon: document.getElementById('ai-toggle-icon'),
+
+            // Camera/Photo Collapse Elements (NEW)
+            photoGeneratorHeader: document.getElementById('photo-generator-header'),
+            photoInputContainer: document.getElementById('photo-input-container'),
+            photoToggleIcon: document.getElementById('photo-toggle-icon'),
             
             // Buttons
             generateCodeBtn: document.getElementById('generateCode'),
@@ -405,7 +419,7 @@
         let isCameraActive = false;
         let isListening = false;
         
-        // --- Speech Recognition Setup (omitted for brevity, assume original logic is here) ---
+        // --- Speech Recognition Setup ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
 
@@ -494,23 +508,23 @@
         };
         
         /**
-         * Toggles the visibility of a section with smooth transition.
+         * Toggles the visibility of a section with smooth transition using max-height style.
          * @param {Object} container - The content wrapper element.
          * @param {Object} icon - The chevron icon element.
          * @param {boolean} show - If true, expands the section; if false, collapses it.
-         * @param {string} maxHeight - The max-height value to use when expanding.
+         * @param {string} maxHeight - The max-height value (e.g., '800px') to use when expanding.
          */
         const toggleSection = (container, icon, show, maxHeight = '800px') => {
             if (show) {
                 // Expand
-                container.classList.remove('max-h-0', 'invisible');
-                container.classList.add(`max-h-[${maxHeight}]`, 'visible'); 
+                container.classList.remove('invisible');
+                container.style.maxHeight = maxHeight; 
                 icon.classList.add('rotate-0');
                 icon.classList.remove('rotate-180');
             } else {
                 // Collapse
-                container.classList.remove(`max-h-[${maxHeight}]`, 'visible');
-                container.classList.add('max-h-0', 'invisible');
+                container.style.maxHeight = '0'; 
+                container.classList.add('invisible'); 
                 icon.classList.remove('rotate-0');
                 icon.classList.add('rotate-180');
             }
@@ -518,7 +532,6 @@
 
         /**
          * Toggles the visibility of the main coupon form inputs.
-         * Uses a dedicated wrapper with large max-height.
          */
         const toggleForm = (show) => {
             toggleSection(elements.couponInputContainer, elements.toggleIcon, show, '800px');
@@ -526,10 +539,16 @@
         
         /**
          * Toggles the visibility of the AI Generator section.
-         * Uses a dedicated wrapper with smaller max-height.
          */
         const toggleAiSection = (show) => {
             toggleSection(elements.aiInputContainer, elements.aiToggleIcon, show, '400px');
+        };
+
+        /**
+         * Toggles the visibility of the Optional Background Photo section.
+         */
+        const togglePhotoSection = (show) => {
+            toggleSection(elements.photoInputContainer, elements.photoToggleIcon, show, '600px');
         };
 
 
@@ -639,7 +658,7 @@
             stopCamera();
         };
 
-        // --- AI API CALLS (omitted for brevity, assume original logic is here) ---
+        // --- AI API CALLS ---
 
         const getApiKey = () => {
             return elements.apiKeyInput.value.trim();
@@ -766,8 +785,9 @@
                 return;
             }
 
-            // Collapse the main form and expand the AI form to show the prompt
+            // Collapse the main form and photo sections, expand the AI form to show the prompt
             toggleForm(false);
+            togglePhotoSection(false);
             toggleAiSection(true); 
 
             // 1. Clear existing content (but preserve image) and show combined loading state
@@ -850,7 +870,7 @@
             }
         };
 
-        // --- Preview and Download Logic (omitted for brevity, assume original logic is here) ---
+        // --- Preview and Download Logic ---
 
         /**
          * Reads input and updates the visual coupon preview.
@@ -1055,15 +1075,20 @@
         
         // 10. Manual form collapse/expand listener for COUPON DETAILS
         elements.couponDetailsHeader.addEventListener('click', () => {
-            const isVisible = elements.couponInputContainer.classList.contains('max-h-[800px]');
+            const isVisible = elements.couponInputContainer.style.maxHeight !== '0px';
             toggleForm(!isVisible);
         });
         
-        // 11. Manual form collapse/expand listener for AI GENERATOR (NEW)
+        // 11. Manual form collapse/expand listener for AI GENERATOR
         elements.aiGeneratorHeader.addEventListener('click', () => {
-            // Check if the content container is currently expanded
-            const isVisible = elements.aiInputContainer.classList.contains('max-h-[400px]');
+            const isVisible = elements.aiInputContainer.style.maxHeight !== '0px';
             toggleAiSection(!isVisible);
+        });
+        
+        // 12. Manual form collapse/expand listener for OPTIONAL BACKGROUND PHOTO (NEW)
+        elements.photoGeneratorHeader.addEventListener('click', () => {
+            const isVisible = elements.photoInputContainer.style.maxHeight !== '0px';
+            togglePhotoSection(!isVisible);
         });
         
         // Initialize the view on load
