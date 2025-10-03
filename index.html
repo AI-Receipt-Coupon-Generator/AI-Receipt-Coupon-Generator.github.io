@@ -124,7 +124,7 @@
     <div class="max-w-4xl mx-auto">
         <header class="text-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">POS Receipt Coupon Generator</h1>
-            <p id="auth-status" class="text-sm text-gray-500 mt-1">Authenticating...</p>
+            <p id="auth-status" class="text-sm text-gray-500 mt-1">Storage: Browser Local Storage</p>
         </header>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -297,7 +297,6 @@
                     <div class="flex flex-wrap justify-center gap-3">
                         <button 
                             id="saveCouponBtn" 
-                            disabled
                             class="px-4 py-3 bg-blue-600 text-white font-bold text-sm rounded-lg hover:bg-blue-700 transition duration-150 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                             onclick="handleSaveCoupon()"
                         >
@@ -352,28 +351,15 @@
         </div>
     </div>
 
-    <!-- Firebase Imports and Logic -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- Firebase Configuration & Global State ---
-        let app;
-        let db;
-        let auth;
-        let userId = null;
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // --- Core Application Logic (Rest of script) ---
-
+    <!-- Core Application Logic -->
+    <script type="text/javascript">
+        
+        // --- Core Configuration ---
         const TEXT_MODEL = 'gemini-2.5-flash-preview-05-20';
         const IMAGE_MODEL = 'imagen-3.0-generate-002';
         const MAX_RETRIES = 5;
         const INITIAL_BACKOFF = 1000;
+        const LOCAL_STORAGE_KEY = 'couponGeneratorHistory';
 
         const statusMessage = document.getElementById('statusMessage');
 
@@ -510,7 +496,6 @@
         
         /**
          * Checks the AI prompt length and enables/disables the generation button.
-         * This handles "void input" from the text box perspective.
          */
         const checkAiButtonState = () => {
             // Button is disabled if the text is too short to be a meaningful prompt
@@ -521,8 +506,6 @@
 
         /**
          * Utility function to display a custom modal message.
-         * @param {string} title - The title of the modal.
-         * @param {string} message - The content message.
          */
         function showModal(title, message) {
             document.getElementById('modal-title').textContent = title;
@@ -545,77 +528,32 @@
             }, 5000);
         };
         
-        // --- Firebase/Auth/Save/Edit Logic ---
+        // --- Local Storage Logic ---
 
         /**
-         * Constructs the Firestore collection path for the user's private coupon history.
-         * @param {string} currentUserId - The authenticated user ID.
-         * @returns {string} The full Firestore path.
+         * Loads all saved coupons from Local Storage.
+         * @returns {Array<Object>} The array of saved coupon objects.
          */
-        const getCouponCollectionPath = (currentUserId) => {
-            return `artifacts/${appId}/users/${currentUserId}/generatedCoupons`;
-        };
-
-        /**
-         * Initializes Firebase and handles authentication.
-         */
-        async function initializeFirebase() {
+        function loadCouponsFromLocalStorage() {
             try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    elements.authStatus.textContent = 'Error: Firebase config missing.';
-                    showModal("Initialization Error", "Cannot connect to the database. Firebase configuration is missing.");
-                    elements.saveCouponBtn.disabled = true;
-                    return;
-                }
-
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // Optional: set log level for debugging
-                setLogLevel('error');
-
-                // Set auth status listener
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        elements.authStatus.innerHTML = `Logged in as: <span class="font-mono text-xs">${userId}</span>`;
-                        elements.saveCouponBtn.disabled = false;
-                        loadCoupons(); // Start listening for saved coupons
-                    } else {
-                        userId = null;
-                        elements.authStatus.textContent = 'Not logged in (Anon).';
-                        elements.saveCouponBtn.disabled = true;
-                        elements.couponHistoryList.innerHTML = `<p class="text-center text-gray-500 p-6 border border-gray-200 rounded-lg">Sign in required to view gallery.</p>`;
-                    }
-                });
-
-                // Sign in using custom token or anonymously
-                if (initialAuthToken) {
-                    await setPersistence(auth, browserSessionPersistence);
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
+                const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return storedData ? JSON.parse(storedData) : [];
             } catch (error) {
-                console.error("Error during Firebase initialization or authentication:", error);
-                elements.authStatus.textContent = 'Auth Failed!';
-                elements.saveCouponBtn.disabled = true;
-                showModal("Authentication Error", `Failed to sign in. Details: ${error.message}`);
+                console.error("Error reading from Local Storage:", error);
+                showModal("Storage Error", "Could not read saved coupons from your browser's local storage.");
+                return [];
             }
         }
 
         /**
-         * Saves the current coupon to the user's Firestore history.
+         * Saves the current coupon to Local Storage.
          */
-        window.handleSaveCoupon = async function() {
-            if (!userId) {
-                showModal("Error", "User not authenticated. Please wait for authentication to complete.");
-                return;
-            }
+        window.handleSaveCoupon = function() {
+            const currentCoupons = loadCouponsFromLocalStorage();
 
             const couponData = {
+                id: crypto.randomUUID(), // Generate a unique ID for the new coupon
+                savedAt: Date.now(), // Use current timestamp
                 discountType: elements.discountType.value,
                 discountValue: elements.discountValue.value.trim(),
                 minPurchase: elements.minPurchase.value.trim(),
@@ -625,38 +563,26 @@
                 customHeadline: elements.customHeadline.value.trim(),
                 codeRenderType: elements.codeRenderType.value,
                 barcodePosition: elements.barcodePosition.value,
-                // Background image saving is skipped as requested by the user.
             };
 
-            const historyCollectionRef = collection(db, getCouponCollectionPath(userId));
-            elements.saveCouponBtn.disabled = true;
-
+            currentCoupons.push(couponData);
+            
             try {
-                displayStatus('Saving coupon to Gallery...', 'text-blue-500');
-
-                // Add the new coupon document
-                await addDoc(historyCollectionRef, {
-                    ...couponData,
-                    savedAt: serverTimestamp(),
-                });
-
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentCoupons));
+                loadCoupons(); // Refresh the gallery
                 displayStatus('Coupon SAVED to Gallery successfully!', 'text-green-600');
-
             } catch (error) {
-                console.error("Error saving coupon:", error);
+                console.error("Error saving to Local Storage:", error);
                 displayStatus('Save FAILED!', 'text-red-600');
-                showModal("Database Error", `Failed to save the coupon: ${error.message}`);
-            } finally {
-                 elements.saveCouponBtn.disabled = false;
+                showModal("Storage Error", "Failed to save the coupon. Local Storage may be full.");
             }
         }
 
         /**
          * Loads the data from a saved coupon into the main form for editing and updates the preview.
-         * @param {Object} couponData - The full coupon object from Firestore.
+         * @param {Object} couponData - The full coupon object.
          */
         window.loadCouponToEditor = function(couponData) {
-            // Note: Data passed from renderCoupons is already JSON parsed.
             elements.discountType.value = couponData.discountType || '%_OFF';
             elements.discountValue.value = couponData.discountValue || '';
             elements.minPurchase.value = couponData.minPurchase || '';
@@ -667,7 +593,7 @@
             elements.codeRenderType.value = couponData.codeRenderType || 'barcode';
             elements.barcodePosition.value = couponData.barcodePosition || 'middle-center';
 
-            // Load background image if available (retains functionality for older saved coupons)
+            // Load background image if available
             if (couponData.backgroundImage) {
                 elements.couponPreview.style.backgroundImage = `url('${couponData.backgroundImage}')`;
             } else {
@@ -677,70 +603,43 @@
             updateCouponPreview();
             displayStatus(`Coupon loaded: ${couponData.couponCode}. Edit details and click 'Save to Gallery' to save a new version.`, 'text-yellow-600');
             
-            // Ensure the main input section is visible and scroll to top
             toggleForm(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
         
         /**
-         * Deletes a coupon document from Firestore.
-         * @param {string} docId - The Firestore document ID.
+         * Deletes a coupon document from Local Storage.
+         * @param {string} id - The unique ID of the coupon to delete.
          * @param {string} couponCode - The human-readable code for display.
          */
-        window.deleteCoupon = async function(docId, couponCode) {
-            if (!userId) {
-                showModal("Error", "Authentication required to delete items.");
-                return;
-            }
+        window.deleteCoupon = function(id, couponCode) {
+            const currentCoupons = loadCouponsFromLocalStorage();
             
-            displayStatus(`Deleting coupon ${couponCode}... Click Delete again to confirm!`, 'text-red-500');
-            
-            // Since we cannot use confirm(), we will assume a single click means confirmation.
+            const updatedCoupons = currentCoupons.filter(coupon => coupon.id !== id);
             
             try {
-                const couponRef = doc(db, getCouponCollectionPath(userId), docId);
-                await deleteDoc(couponRef);
-                // onSnapshot will handle the UI update
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedCoupons));
+                loadCoupons(); // Refresh the gallery
                 displayStatus(`Coupon ${couponCode} deleted successfully.`, 'text-green-600');
             } catch (error) {
-                console.error("Error deleting document:", error);
-                displayStatus(`Error deleting coupon: ${error.message}`, 'text-red-600');
-                showModal("Deletion Error", `Failed to delete coupon "${couponCode}": ${error.message}`);
+                console.error("Error deleting from Local Storage:", error);
+                displayStatus('Deletion FAILED!', 'text-red-600');
+                showModal("Storage Error", "Failed to delete the coupon.");
             }
         };
 
 
         /**
-         * Loads and listens for real-time changes to the user's saved coupons.
+         * Loads and renders the saved coupons from Local Storage.
          */
         function loadCoupons() {
-            if (!userId) {
-                 elements.couponHistoryList.innerHTML = `<p class="text-center text-gray-500 p-6 border border-gray-200 rounded-lg">Sign in required to view gallery.</p>`;
-                 return;
-            }
+            const coupons = loadCouponsFromLocalStorage();
 
-            const historyCollectionRef = collection(db, getCouponCollectionPath(userId));
-            
-            elements.loadingMessage.classList.remove('hidden'); // Show loading initially
+            // Sort coupons by savedAt descending (newest first)
+            coupons.sort((a, b) => b.savedAt - a.savedAt);
 
-            // Listen for real-time updates
-            onSnapshot(historyCollectionRef, (snapshot) => {
-                const coupons = [];
-                snapshot.forEach(doc => {
-                    // Create a data object that can be safely JSON.stringified for the onclick event
-                    coupons.push({ id: doc.id, ...doc.data() });
-                });
-
-                // Sort coupons by savedAt descending (newest first)
-                coupons.sort((a, b) => (b.savedAt?.toDate() || 0) - (a.savedAt?.toDate() || 0));
-
-                renderCoupons(coupons);
-                elements.loadingMessage.classList.add('hidden'); // Hide loading after data is ready
-            }, (error) => {
-                console.error("Error fetching coupons:", error);
-                elements.couponHistoryList.innerHTML = `<p class="text-red-500 text-center">Error loading history: ${error.message}</p>`;
-                elements.loadingMessage.classList.add('hidden');
-            });
+            renderCoupons(coupons);
+            elements.loadingMessage.classList.add('hidden'); // Hide loading after data is ready
         }
 
         /**
@@ -751,28 +650,27 @@
             elements.couponCount.textContent = coupons.length;
 
             if (coupons.length === 0) {
-                elements.couponHistoryList.innerHTML = `<p class="text-center text-gray-500 p-6 border border-gray-200 rounded-lg">No coupons saved yet. Use the Save to Gallery button above!</p>`;
+                elements.couponHistoryList.innerHTML = `<p class="text-center text-gray-500 p-6 border border-gray-200 rounded-lg">No coupons saved yet. Your saved coupons will appear here.</p>`;
                 return;
             }
 
             elements.couponHistoryList.innerHTML = coupons.map(coupon => {
-                const savedDate = coupon.savedAt ? coupon.savedAt.toDate().toLocaleDateString() : 'N/A';
+                const savedDate = new Date(coupon.savedAt).toLocaleDateString();
                 const expiry = coupon.expirationDate ? formatDate(coupon.expirationDate) : 'N/A';
                 const discount = coupon.discountType.replace('_', ' ') === 'FREE_ITEM' ? coupon.discountValue : `${coupon.discountValue}${coupon.discountType.replace('_OFF', '')}`;
                 const min = coupon.minPurchase ? `Min: ${coupon.minPurchase}` : '';
                 
-                // Safely stringify the coupon object for passing to the onclick handler
-                // Replace single quotes with their escaped version to prevent breaking the string attribute
-                const couponDataJson = JSON.stringify({ id: coupon.id, ...coupon }).replace(/'/g, "\\'");
+                // Safely stringify the coupon object for passing to the onclick event
+                const couponDataJson = JSON.stringify(coupon).replace(/'/g, "\\'");
 
                 return `
                     <div class="saved-coupon-item p-4 bg-white rounded-xl shadow-md flex flex-col sm:flex-row justify-between items-start transition duration-150 hover:shadow-lg">
                         <div class="flex-grow mb-3 sm:mb-0">
                             <p class="text-lg font-bold text-gray-900">${coupon.customHeadline || discount}</p>
                             
-                            <!-- Display the Unique Coupon ID (Firestore Document ID) -->
+                            <!-- Display the Unique Coupon ID (Local Storage ID) -->
                             <p class="text-sm text-gray-500 font-medium mt-1">
-                                ID: <span class="font-mono text-xs text-blue-600">${coupon.id}</span>
+                                ID: <span class="font-mono text-xs text-blue-600">${coupon.id.substring(0, 8)}...</span>
                             </p>
                             
                             <p class="text-xs text-gray-700 mt-1">Code: ${coupon.couponCode}</p>
@@ -810,13 +708,7 @@
             return Math.random().toString(36).substring(2, 12).toUpperCase();
         };
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-        /**
-         * Toggles the visibility and collapse state of a section.
-         * @param {HTMLElement} container - The content container element.
-         * @param {HTMLElement} icon - The chevron icon element.
-         * @param {boolean} show - True to show, false to hide.
-         * @param {string} maxHeight - The max height when shown (e.g., '800px').
-         */
+        
         const toggleSection = (container, icon, show, maxHeight = '800px') => {
             if (show) {
                 container.classList.remove('invisible');
@@ -1059,7 +951,7 @@
                 elements.generateAiCouponBtn.disabled = false;
                 elements.aiBtnText.textContent = 'Generate Coupon Draft with AI';
                 elements.aiLoadingSpinner.classList.add('hidden');
-                if (userId) elements.saveCouponBtn.disabled = false; 
+                elements.saveCouponBtn.disabled = false; // Always enable save with local storage
                 toggleForm(true); 
             }
         };
@@ -1290,7 +1182,7 @@
         });
         
         // --- Initialization ---
-        initializeFirebase();
+        loadCoupons();
         updateCouponPreview();
     </script>
 </body>
